@@ -22,6 +22,7 @@
 import logging
 import json
 import os
+import subprocess
 from mizar.common.workflow import *
 from mizar.dp.mizar.operators.droplets.droplets_operator import *
 from mizar.dp.mizar.operators.endpoints.endpoints_operator import *
@@ -38,6 +39,8 @@ vpc_opr = VpcOperator()
 net_opr = NetOperator()
 networkpolicy_util = NetworkPolicyUtil()
 
+COMMAND = "netstat -i | grep '^e' | awk '{print $1}' | grep -v 'lo\|eth-host' "
+ifname = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
 
 class k8sPodCreate(WorkflowTask):
 
@@ -60,7 +63,7 @@ class k8sPodCreate(WorkflowTask):
             'vpc': OBJ_DEFAULTS.default_ep_vpc,
             'subnet': OBJ_DEFAULTS.default_ep_net,
             'phase': self.param.body['status']['phase'],
-            'interfaces': [{'name': 'eth0'}]
+            'interfaces': [{'name': '%s' %ifname}]
         }
 
         spec['vni'] = vpc_opr.store_get(spec['vpc']).vni
@@ -84,7 +87,7 @@ class k8sPodCreate(WorkflowTask):
                 spec["subnet"] = net
                 logger.info("Putting pod in VPC {} and Net {}".format(
                     spec["vpc"], spec["subnet"]))
-            # Example: arktos.futurewei.com/nic: [{"name": "eth0", "ip": "10.10.1.12", "subnet": "net1"}]
+            # Example: arktos.futurewei.com/nic: [{"name": "%s"%ifname, "ip": "10.10.1.12", "subnet": "net1"}]
             # all three fields are optional. Each item in the list corresponding to an endpoint
             # which represents a network interface for a pod
             if "interfaces" in self.param.extra:

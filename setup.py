@@ -19,7 +19,7 @@ setup(
         'rpyc',
         'kubernetes==11.0.0',
         'luigi==2.8.12',
-        'grpcio',
+        'grpcio>=1.39.0',
         'scapy',
         'protobuf',
         'fs',
