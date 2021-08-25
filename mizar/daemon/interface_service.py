@@ -28,7 +28,7 @@ logger = logging.getLogger()
 CONSUME_INTERFACE_TIMEOUT = 5
 
 COMMAND = "netstat -i | grep '^e' | awk '{print $1}' | grep -v 'lo\|eth-host' "
-ifname = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
+ifnames = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
 
 class InterfaceServer(InterfaceServiceServicer):
 
@@ -39,11 +39,11 @@ class InterfaceServer(InterfaceServiceServicer):
         self.queued_pods = set()  # A set of pods, with queued interfaces (to be consumed)
         self.interfaces_lock = threading.Lock()
 
-        cmd = 'ip addr show %s | grep "inet\\b" | awk \'{print $2}\' | cut -d/ -f1' %ifname
+        cmd = 'ip addr show %s | grep "inet\\b" | awk \'{print $2}\' | cut -d/ -f1' %ifnames
         r = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         self.droplet_ip = r.stdout.read().decode().strip()
 
-        cmd = 'ip addr show %s | grep "link/ether\\b" | awk \'{print $2}\' | cut -d/ -f1' %ifname
+        cmd = 'ip addr show %s | grep "link/ether\\b" | awk \'{print $2}\' | cut -d/ -f1' %ifnames
         r = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         self.droplet_mac = r.stdout.read().decode().strip()
 
@@ -51,7 +51,7 @@ class InterfaceServer(InterfaceServiceServicer):
         r = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         self.droplet_name = r.stdout.read().decode().strip()
 
-        self.itf = '%s' %ifname
+        self.itf = ifnames
         self.rpc = LocalTransitRpc('127.0.0.1', self.droplet_mac)
 
     def __del__(self):
@@ -339,7 +339,7 @@ class LocalTransitRpc:
     def __init__(self, ip, mac, benchmark=False):
         self.ip = ip
         self.mac = mac
-        self.phy_itf = '%s'%ifname
+        self.phy_itf = ifnames
 
         # transitd cli commands
         self.trn_cli = f'''nsenter -t 1 -m -u -n -i /trn_bin/transit -s {self.ip} '''
@@ -473,7 +473,7 @@ class LocalTransitRpc:
                 "mac": interface.address.mac,
                 "veth": interface.veth.name,
                 "remote_ips": [interface.droplet.ip_address],
-                "hosted_iface": '%s' %ifname
+                "hosted_iface": ifnames
             },
             "net": {
                 "tunnel_id": interface.address.tunnel_id,
@@ -484,7 +484,7 @@ class LocalTransitRpc:
             "eth": {
                 "ip": interface.droplet.ip_address,
                 "mac": interface.droplet.mac,
-                "iface": '%s' %ifname
+                "iface": ifnames
             }
         }
         jsonconf = json.dumps(jsonconf)

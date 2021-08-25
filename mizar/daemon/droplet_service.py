@@ -13,7 +13,7 @@ from mizar.common.common import get_itf
 logger = logging.getLogger()
 
 COMMAND = "netstat -i | grep '^e' | awk '{print $1}' | grep -v 'lo\|eth-host' "
-ifname = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
+ifnames = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
 
 class DropletServer(droplet_pb2_grpc.DropletServiceServicer):
 
@@ -23,7 +23,7 @@ class DropletServer(droplet_pb2_grpc.DropletServiceServicer):
         r = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         self.ip = r.stdout.read().decode().strip()
 
-        cmd = 'ip addr show %s | grep "link/ether\\b" | awk \'{print $2}\' | cut -d/ -f1' %ifname
+        cmd = 'ip addr show %s | grep "link/ether\\b" | awk \'{print $2}\' | cut -d/ -f1' %ifnames
         r = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         self.mac = r.stdout.read().decode().strip()
 

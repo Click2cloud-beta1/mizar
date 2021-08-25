@@ -37,7 +37,7 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 COMMAND = "netstat -i | grep '^e' | awk '{print $1}' | grep -v 'lo\|eth-host' "
-ifname = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
+ifnames = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
 
 class Cni:
     def __init__(self):
@@ -186,12 +186,12 @@ class Cni:
         # Disable TSO and checksum offload as xdp currently does not support
         logger.info("Disable tso for pod")
         cmd = "ip netns exec {} ethtool -K {} tso off gso off ufo off".format(
-            netns, "%s" %ifname)
+            netns, ifnames)
         rc, text = run_cmd(cmd)
         logger.info("Executed cmd {} tso rc: {} text {}".format(cmd, rc, text))
         logger.info("Disable rx tx offload for pod")
         cmd = "ip netns exec {} ethtool --offload {} rx off tx off".format(
-            netns, "%s" %ifname)
+            netns, ifnames)
         rc, text = run_cmd(cmd)
         logger.info("Executed cmd {} rc: {} text {}".format(cmd, rc, text))
 

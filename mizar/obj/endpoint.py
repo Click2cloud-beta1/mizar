@@ -30,7 +30,7 @@ from mizar.obj.data_networkpolicy import *
 logger = logging.getLogger()
 
 COMMAND = "netstat -i | grep '^e' | awk '{print $1}' | grep -v 'lo\|eth-host' "
-ifname = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
+ifnames = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
 
 class Endpoint:
     def __init__(self, name, obj_api, opr_store, spec=None):
@@ -50,7 +50,7 @@ class Endpoint:
         self.droplet = ""
         self.droplet_ip = ""
         self.droplet_mac = ""
-        self.droplet_eth = '%s'%ifname
+        self.droplet_eth = 'ifnames'
         self.droplet_obj = None
         self.veth_peer = ""
         self.veth_name = ""

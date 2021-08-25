@@ -23,7 +23,7 @@ logger = logging.getLogger()
 POOL_WORKERS = 10
 
 COMMAND = "netstat -i | grep '^e' | awk '{print $1}' | grep -v 'lo\|eth-host' "
-ifname = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
+ifnames = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
 
 def init(benchmark=False):
     # Setup the droplet's host
@@ -32,19 +32,19 @@ def init(benchmark=False):
     nsenter -t 1 -m -u -n -i /etc/init.d/rpcbind restart && \
     nsenter -t 1 -m -u -n -i /etc/init.d/rsyslog restart && \
     nsenter -t 1 -m -u -n -i sysctl -w net.ipv4.tcp_mtu_probing=2 && \
-    'nsenter -t 1 -m -u -n -i ip link set dev %s up mtu 9000' %ifname && \
+    nsenter -t 1 -m -u -n -i ip link set dev {ifnames} up mtu 9000 && \
     nsenter -t 1 -m -u -n -i mkdir -p /var/run/netns' ''')
 
     r = subprocess.Popen(script, shell=True, stdout=subprocess.PIPE)
     output = r.stdout.read().decode().strip()
     logging.info("Setup done")
 
-    cmd = 'nsenter -t 1 -m -u -n -i ip addr show %s | grep "inet\\b" | awk \'{print $2}\'' %ifname
+    cmd = 'nsenter -t 1 -m -u -n -i ip addr show %s | grep "inet\\b" | awk \'{print $2}\'' %ifnames
     r = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     nodeipmask = r.stdout.read().decode().strip()
     nodeip = nodeipmask.split("/")[0]
 
-    cmd = "nsenter -t 1 -m -u -n -i ip link set dev %s xdpgeneric off" %ifname
+    cmd = "nsenter -t 1 -m -u -n -i ip link set dev %s xdpgeneric off" %ifnames
 
     r = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     output = r.stdout.read().decode().strip()
@@ -69,7 +69,7 @@ def init(benchmark=False):
     }
     config = json.dumps(config)
     cmd = (
-       f'''nsenter -t 1 -m -u -n -i /trn_bin/transit -s {nodeip} load-transit-xdp -i %s -j '{config}' ''' %ifname)
+       f'''nsenter -t 1 -m -u -n -i /trn_bin/transit -s {nodeip} load-transit-xdp -i {ifnames} -j '{config}' ''')
 
     r = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     output = r.stdout.read().decode().strip()
@@ -85,11 +85,11 @@ def init(benchmark=False):
     brcmd = f'''nsenter -t 1 -m -u -n -i sysctl -w net.bridge.bridge-nf-call-iptables=0 && \
         nsenter -t 1 -m -u -n -i ip link add {CONSTANTS.MIZAR_BRIDGE} type bridge && \
         nsenter -t 1 -m -u -n -i ip link set dev {CONSTANTS.MIZAR_BRIDGE} up && \
-        'nsenter -t 1 -m -u -n -i ip link set %s master {CONSTANTS.MIZAR_BRIDGE}' %ifname && \
+        nsenter -t 1 -m -u -n -i ip link set {ifnames} master {CONSTANTS.MIZAR_BRIDGE} && \
         nsenter -t 1 -m -u -n -i ip addr add {nodeip} dev {CONSTANTS.MIZAR_BRIDGE} && \
         nsenter -t 1 -m -u -n -i brctl show'''
 
-    rtlistcmd = 'nsenter -t 1 -m -u -n -i ip route list | grep "dev %s"'%ifname
+    rtlistcmd = 'nsenter -t 1 -m -u -n -i ip route list | grep "dev %s"'%ifnames
     r = subprocess.Popen(rtlistcmd, shell=True, stdout=subprocess.PIPE)
     rtchanges = []
     while True:
@@ -97,8 +97,8 @@ def init(benchmark=False):
         if not line:
             break
         rt = line.decode().strip()
-        rtkey = rt.partition("dev %s" %ifname)[0]
-        rtdesc = rt.partition("dev %s" %ifname)[2]
+        rtkey = rt.partition("dev "+str(ifnames))[0]
+        rtdesc = rt.partition("dev "+str(ifnames))[2]
         rnew = 'nsenter -t 1 -m -u -n -i ip route change ' + rtkey + f'''dev {CONSTANTS.MIZAR_BRIDGE}''' + rtdesc
         if 'default' in rt:
             rtchanges.append(rnew)
@@ -124,10 +124,10 @@ def init(benchmark=False):
     logging.info("Mizar bridge setup complete.\n{}\n".format(output))
 
     tcscript = (f''' bash -c '\
-    'nsenter -t 1 -m -u -n -i tc qdisc add dev %s clsact'%ifname && \
-    'nsenter -t 1 -m -u -n -i tc filter del dev %s egress'%ifname && \
-    'nsenter -t 1 -m -u -n -i tc filter add dev %s egress bpf da obj {tc_edt_ebpf_path} sec edt'%ifname && \
-    'nsenter -t 1 -m -u -n -i tc filter show dev %s egress' %ifname ' ''')
+    nsenter -t 1 -m -u -n -i tc qdisc add dev {ifnames} clsact && \
+    nsenter -t 1 -m -u -n -i tc filter del dev {ifnames} egress && \
+    nsenter -t 1 -m -u -n -i tc filter add dev {ifnames} egress bpf da obj {tc_edt_ebpf_path} sec edt && \
+    nsenter -t 1 -m -u -n -i tc filter show dev{ifnames} egress' ''')
     r = subprocess.Popen(tcscript, shell=True, stdout=subprocess.PIPE)
     output = r.stdout.read().decode().strip()
     logging.info("Load EDT eBPF program done.\n{}\n".format(output))

@@ -39,7 +39,7 @@ _libc = ctypes.CDLL(find_library('c'), use_errno=True)
 logger = logging.getLogger()
 
 COMMAND = "netstat -i | grep '^e' | awk '{print $1}' | grep -v 'lo\|eth-host' "
-ifname = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
+ifnames = subprocess.Popen(COMMAND,stdin=subprocess.PIPE,stdout=subprocess.PIPE, shell=True).stdout.read().decode().strip()
 
 def run_cmd(cmd):
     result = subprocess.Popen(
@@ -437,7 +437,7 @@ def bindmount_netns(src_netns_path, dst_netns_path):
 
 
 def get_itf():
-    default_itf = "%s" %ifname
+    default_itf = ifnames
     if "MIZAR_ITF" in os.environ:
         logger.info("MIZAR_ITF env var found!")
         return os.getenv("MIZAR_ITF")
